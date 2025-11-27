@@ -1,0 +1,50 @@
+{
+  "name": "frontend-spotifydownloader",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Frontend web app for Spotify Downloader - Download tracks, albums, and playlists from Spotify",
+  "type": "module",
+  "license": "GPL-3.0-or-later",
+  "author": "rohidtzz",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rohidtzz/frontend-spotifydownloader.git"
+  },
+  "bugs": {
+    "url": "https://github.com/rohidtzz/frontend-spotifydownloader/issues"
+  },
+  "homepage": "https://github.com/rohidtzz/frontend-spotifydownloader#readme",
+  "keywords": [
+    "spotify",
+    "downloader",
+    "spotify-downloader",
+    "vue",
+    "vue3",
+    "vite",
+    "tailwindcss",
+    "music",
+    "download"
+  ],
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "docker:build": "node docker-build.js"
+  },
+  "dependencies": {
+    "axios": "^1.12.1",
+    "vue": "^3.5.18",
+    "vue-router": "^4.5.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.1",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.3.3",
+    "vite": "^7.0.6",
+    "vite-plugin-vue-devtools": "^8.0.0"
+  }
+}
