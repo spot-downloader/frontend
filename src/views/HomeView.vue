@@ -10,70 +10,49 @@
             Download
         </button>
 
-        <!-- Loading Message -->
+        <!-- Loading Message with Real-time Progress -->
         <div v-if="loading" class="mt-6 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-700 rounded-xl border border-blue-200 dark:border-gray-600 shadow-md">
             <div class="flex items-center mb-4">
                 <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mr-3"></div>
                 <h3 class="text-lg font-bold text-blue-800 dark:text-blue-300">
-                    🎵 Sedang Memproses...
+                    🎵 {{ progressData.message || 'Sedang Memproses...' }}
                 </h3>
             </div>
             
-            <div v-if="type === 'track'" class="space-y-2">
-                <p class="text-blue-700 dark:text-blue-200 text-base font-medium">
-                    ✨ Sedang mendownload track dari Spotify
+            <!-- Progress Bar -->
+            <div v-if="progressData.total > 0" class="mb-4">
+                <div class="flex justify-between text-sm text-blue-600 dark:text-blue-300 mb-1">
+                    <span>Progress: {{ progressData.current || 0 }} / {{ progressData.total }}</span>
+                    <span>{{ progressData.progress || 0 }}%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-4 dark:bg-gray-600">
+                    <div 
+                        class="bg-blue-600 h-4 rounded-full transition-all duration-300 ease-out"
+                        :style="{ width: (progressData.progress || 0) + '%' }"
+                    ></div>
+                </div>
+            </div>
+            
+            <!-- Current Track Info -->
+            <div v-if="progressData.currentTrack" class="bg-blue-100 dark:bg-gray-600 p-3 rounded-lg mb-3">
+                <p class="text-sm text-blue-600 dark:text-blue-300">
+                    🎶 <strong>Sedang diproses:</strong> {{ progressData.currentTrack }}
                 </p>
+            </div>
+
+            <!-- Type-specific Info -->
+            <div v-if="type === 'track'" class="space-y-2">
                 <div class="bg-blue-100 dark:bg-gray-600 p-3 rounded-lg">
                     <p class="text-sm text-blue-600 dark:text-blue-300">
-                        ⏱️ <strong>Estimasi waktu:</strong> 2-5 menit<br>
-                        💡 <strong>Tips:</strong> Biarkan tab ini tetap terbuka sampai selesai
+                        ⏱️ <strong>Estimasi waktu:</strong> 1-2 menit
                     </p>
                 </div>
             </div>
             
-            <div v-else-if="type === 'playlist'" class="space-y-2">
-                <p class="text-blue-700 dark:text-blue-200 text-base font-medium">
-                    🎶 Sedang mendownload playlist dari Spotify
-                </p>
+            <div v-else-if="type === 'playlist' || type === 'album' || type === 'artist'" class="space-y-2">
                 <div class="bg-blue-100 dark:bg-gray-600 p-3 rounded-lg">
                     <p class="text-sm text-blue-600 dark:text-blue-300">
-                        ⏱️ <strong>Estimasi waktu:</strong> Tergantung jumlah lagu (5-30 menit)<br>
-                        💡 <strong>Tips:</strong> Proses berjalan di background, jangan tutup tab ini<br>
-                    </p>
-                </div>
-            </div>
-
-            <div v-else-if="type === 'album'" class="space-y-2">
-                <p class="text-blue-700 dark:text-blue-200 text-base font-medium">
-                    💿 Sedang mendownload album dari Spotify
-                </p>
-                <div class="bg-blue-100 dark:bg-gray-600 p-3 rounded-lg">
-                    <p class="text-sm text-blue-600 dark:text-blue-300">
-                        ⏱️ <strong>Estimasi waktu:</strong> Tergantung jumlah lagu (5-30 menit)<br>
-                        💡 <strong>Tips:</strong> Proses berjalan di background, jangan tutup tab ini<br>
-                    </p>
-                </div>
-            </div>
-
-            <div v-else-if="type === 'artist'" class="space-y-2">
-                <p class="text-blue-700 dark:text-blue-200 text-base font-medium">
-                    🎤 Sedang mendownload top tracks artist dari Spotify
-                </p>
-                <div class="bg-blue-100 dark:bg-gray-600 p-3 rounded-lg">
-                    <p class="text-sm text-blue-600 dark:text-blue-300">
-                        ⏱️ <strong>Estimasi waktu:</strong> 5-15 menit (10 top tracks)<br>
-                        💡 <strong>Tips:</strong> Proses berjalan di background, jangan tutup tab ini<br>
-                    </p>
-                </div>
-            </div>
-
-            <div v-else class="space-y-2">
-                <p class="text-blue-700 dark:text-blue-200 text-base font-medium">
-                    🔄 Memproses request Anda...
-                </p>
-                <div class="bg-blue-100 dark:bg-gray-600 p-3 rounded-lg">
-                    <p class="text-sm text-blue-600 dark:text-blue-300">
-                        ⏳ Mohon tunggu sebentar...
+                        ⏱️ <strong>Estimasi waktu:</strong> 1-2 menit per lagu
                     </p>
                 </div>
             </div>
@@ -101,6 +80,15 @@ export default {
             type: '',
             errors: {},
             spotifyPattern: /^https:\/\/open\.spotify\.com\/(track|playlist|album|artist)\/[a-zA-Z0-9]+(\?.*)?$/,
+            eventSource: null,
+            jobId: null,
+            progressData: {
+                message: 'Memulai...',
+                progress: 0,
+                total: 0,
+                current: 0,
+                currentTrack: ''
+            }
         }
     },
     methods: {
@@ -134,48 +122,156 @@ export default {
             }
             
             const matchType = this.url.match(this.spotifyPattern)[1];
-            let url = '';
+            let downloadUrl = '';
             
             if(matchType === 'playlist'){
-                url = '/downloads/playlist';
+                downloadUrl = '/downloads/playlist';
                 this.type = 'playlist';
             } else if(matchType === 'album'){
-                url = '/downloads/album';
+                downloadUrl = '/downloads/album';
                 this.type = 'album';
             } else if(matchType === 'artist'){
-                url = '/downloads/artist';
+                downloadUrl = '/downloads/artist';
                 this.type = 'artist';
             } else {
-                url = '/downloads/track';
+                downloadUrl = '/downloads/track';
                 this.type = 'track';
             }
 
             this.loading = true;
+            this.progressData = {
+                message: 'Mengirim request...',
+                progress: 0,
+                total: 0,
+                current: 0,
+                currentTrack: ''
+            };
+            
             axios.post('/download', {
                 url: this.url
             }).then(response => {
-                this.checkJobStatus(url);
+                console.log('Job response:', response.data.job);
+                this.jobId = response.data.job.id;
+                
+                // Check if job already done
+                if (response.data.job.status === 'done' && response.data.job.payload) {
+                    this.getZip(response.data.job.payload, downloadUrl);
+                    return;
+                }
+                
+                // Update progress message based on status
+                if (response.data.job.existing) {
+                    this.progressData.message = response.data.job.status === 'processing' 
+                        ? 'Job sedang diproses...' 
+                        : 'Job dalam antrian...';
+                }
+                
+                // Start SSE connection for progress
+                this.startProgressTracking(downloadUrl);
             }).catch(error => {
                 console.error(error);
                 this.errors.url = 'Gagal menghubungi server';
                 this.loading = false;
             });
         },
-        getZip(name,url){
-            const encodedName = encodeURIComponent(name);
+        startProgressTracking(downloadUrl) {
+            // Close existing connection if any
+            if (this.eventSource) {
+                this.eventSource.close();
+            }
+            
+            const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+            
+            try {
+                this.eventSource = new EventSource(`${baseUrl}/progress/${this.jobId}`);
+            } catch (e) {
+                console.error('Failed to create EventSource:', e);
+                this.checkJobStatus(downloadUrl);
+                return;
+            }
+            
+            this.eventSource.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    console.log('Progress update:', data);
+                    
+                    // If server says to use polling, switch to polling
+                    if (data.usePolling) {
+                        console.log('Server requested polling fallback');
+                        if (this.eventSource) {
+                            this.eventSource.close();
+                            this.eventSource = null;
+                        }
+                        this.checkJobStatus(downloadUrl);
+                        return;
+                    }
+                    
+                    // Update progress data
+                    this.progressData = {
+                        ...this.progressData,
+                        ...data
+                    };
+                    
+                    // Handle completion
+                    if (data.status === 'done') {
+                        this.eventSource.close();
+                        this.eventSource = null;
+                        
+                        if (data.payload) {
+                            this.getZip(data.payload, downloadUrl);
+                        } else {
+                            // Fallback to polling if no payload in SSE
+                            this.checkJobStatus(downloadUrl);
+                        }
+                    }
+                    
+                    // Handle failure
+                    if (data.status === 'failed') {
+                        this.eventSource.close();
+                        this.eventSource = null;
+                        this.errors.url = data.message || 'Download gagal';
+                        this.loading = false;
+                    }
+                } catch (e) {
+                    console.error('Error parsing SSE data:', e);
+                }
+            };
+            
+            this.eventSource.onerror = (error) => {
+                console.error('SSE Error:', error);
+                // Fallback to polling on SSE error
+                if (this.eventSource) {
+                    this.eventSource.close();
+                    this.eventSource = null;
+                }
+                console.log('Falling back to polling...');
+                this.checkJobStatus(downloadUrl);
+            };
+        },
+        getZip(name, url){
+            this.progressData.message = 'Menyiapkan file zip...';
 
             axios.get(url, {
-                params: { q: encodedName },
+                params: { q: name },
                 responseType: 'blob'
             }).then(res => {
 
-                const url = window.URL.createObjectURL(new Blob([res.data]));
+                const blobUrl = window.URL.createObjectURL(new Blob([res.data]));
                 const link = document.createElement('a');
-                link.href = url;
+                link.href = blobUrl;
                 link.setAttribute('download', `${name}.zip`); 
                 document.body.appendChild(link);
                 link.click();
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(blobUrl);
                 this.loading = false;
+                this.progressData = {
+                    message: 'Selesai!',
+                    progress: 100,
+                    total: 0,
+                    current: 0,
+                    currentTrack: ''
+                };
             }).catch(err => {
                 console.error(err);
                 this.errors.url = 'Gagal mengunduh file';
@@ -203,6 +299,13 @@ export default {
                 this.errors.url = 'Gagal menghubungi server';
                 this.loading = false;
             });
+        }
+    },
+    beforeUnmount() {
+        // Clean up SSE connection when component is destroyed
+        if (this.eventSource) {
+            this.eventSource.close();
+            this.eventSource = null;
         }
     }
 }
