@@ -79,7 +79,8 @@ export default {
             loading: false,
             type: '',
             errors: {},
-            spotifyPattern: /^https:\/\/open\.spotify\.com\/(track|playlist|album|artist)\/[a-zA-Z0-9]+(\?.*)?$/,
+            // Support URL with optional locale like /intl-id/, /intl-en/, etc.
+            spotifyPattern: /^https:\/\/open\.spotify\.com\/(intl-[a-z]{2}\/)?(track|playlist|album|artist)\/[a-zA-Z0-9]+(\?.*)?$/,
             eventSource: null,
             jobId: null,
             progressData: {
@@ -121,7 +122,9 @@ export default {
                 return
             }
             
-            const matchType = this.url.match(this.spotifyPattern)[1];
+            // Group 1 is locale (optional), Group 2 is type
+            const match = this.url.match(this.spotifyPattern);
+            const matchType = match[2] || match[1]; // Use group 2 if locale exists, otherwise group 1
             let downloadUrl = '';
             
             if(matchType === 'playlist'){
